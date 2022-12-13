@@ -136,7 +136,53 @@ solveBest([S,E,N,D,M,O,R,Y]) :-
 
 ### Natural Language Processing (20%)
 #### Concepts
-- Focuses on syntactic and semantic parsing: uses database (KB), lexicon (specifies vocabulary/word types), parser (grammatical rules to form statements)
+- **Database:** stores facts, defines model of world
+- **Lexicon:** specifies vocabulary and words of interest
+- **Parser:** grammatical rules to form statements (uses a *Grammar*)
+#### Database
+```pl
+person(john). job(john, doctor). size(john, small).
+person(grace). job(grace, doctor). size(grace, big).
+person(mark). job(mark, programmer). size(mark, small).
+person(linda). job(linda, programmer). size(linda, small).
+
+park(qbeach). park(queens_park).
+tree(tree01). size(tree01, big).
+tree(tree02). size(tree02, small).
+tree(tree03). Size(tree03, small).
+...
+```
+#### Lexicon
+```pl
+article(a).
+article(the).
+
+common_noun(park, X) :- park(X).
+common_noun(tree, X) :- tree(X).
+common_noun(hat, X) :- hat(X).
+common_noun(programmer, X) :- job(X, programmer).
+common_noun(doctor, X) :- job(X, doctor).
+common_noun(doc, X) :- job(X, doctor).
+common_noun(doctor, X) :- hasPhD(X).
+common_noun(medical_doctor, X) :- job(X, doctor), hasMD(X).
+
+proper_noun(Noun) :- person(Noun).
+
+adjective(big, X) :- size(X, big).
+adjective(small, X) :- size(X, small).
+adjective(red, X) :- colour(X, red).
+adjective(blue, X) :- colour(X, blue).
+
+preposition(on, X, Y) :- on(X, Y).
+preposition(in, X, Y) :- in(X, Y).
+preposition(beside, X, Y) :- beside(X, Y).
+preposition(beside, X, Y) :- beside(Y, X).
+
+preposition(with, X, Y) :- on(X, Y).
+preposition(with, X, Y) :- in(X, Y).
+preposition(with, X, Y) :- beside(X, Y).
+preposition(with, X, Y) :- beside(Y, X).
+```
 #### Grammar
 ```
 1   S -> NP VP
@@ -147,12 +193,74 @@ solveBest([S,E,N,D,M,O,R,Y]) :-
 6   NP -> article NP2
 7   NP2 -> adjective NP2
 8   NP2 -> common_noun Mods
-9   Mods -> [ ]
+9   Mods -> []
 10  Mods -> PP Mods
 11  PP -> preposition NP
 ```
+#### Parser
+```pl
+% How we are going to ask Qs (driver)
+who(Words, Ref) :- np(Words, Ref).
+
+% NP -> proper_noun
+np([Name], Name) :- proper_noun(Name).
+
+% NP -> article NP2
+np([Art | Rest], Who) :- article(Art), np2(Rest, Who).
+
+% NP2 -> adjective NP2
+np2([Adj | Rest], Who) :- adjective(Adj, Who), np2(Rest, Who). 
+
+% NP2 -> common_noun Mods
+Np2([Noun | Rest], Who) :- common_noun(Adj, Who), mods(Rest, Who). 
+
+% Mods -> []
+mods([], Who). 
+
+% Mods -> PP Mods
+mods(Words, Who) :- append(Start, End, Words), 
+pp(Start, Who), mods(End, Who).
+
+% PP -> preposition NP
+pp([Prep | Rest], Who) :- preposition(Prep, Who, Who2), np(Rest, Who2). 
+```
+#### Querying
+Normal Query
+```pl
+?- who([a, doctor, with, a, big, hat], X).
+X = grace
+```
+Competion & Generation
+```pl
+?- who([the, W, on, john], hat01).
+W = hat
+
+?- who(L, linda).
+L = linda ;
+Execution gets stuck in recursion constructing "a small small small ..."
+
+?- L = [a, _, _, _, _], who(L, linda).
+L = [a, small, small, small, programmer]
+L = [a, small, programmer, in, queens_park]
+L = [a, small, programmer, with, mark]
+...
+
+```
+Interrogative Sentences
+```pl
+WH -> wh_word copula_verb NP    % What is X?
+WH -> wh_word copula_verb PP    % Who is in X?
+
+```
+Yes/No Questions
+```pl
+YN -> copula_verb NP NP    % Is X a Y?
+YN -> copula_verb NP PP    % Is X with Y?
+```
 
 ### Short Essay General Question (5%)
+
+N/A
 
 ### Problem Solving / Planning (25%)
 
