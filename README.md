@@ -138,7 +138,54 @@ solveBest([S,E,N,D,M,O,R,Y]) :-
 #### Concepts
 - **Database:** stores facts, defines model of world
 - **Lexicon:** specifies vocabulary and words of interest
+
+<img src="lexicon.png" width="500" title="lexicon">
+
 - **Parser:** grammatical rules to form statements (uses a *Grammar*)
+- **Grammar:** formal system of language structure
+
+#### Grammar
+```
+1   S -> NP VP
+2   VP -> copula_verb Mods
+3   VP -> transitive_verb NP Mods
+4   VP -> intransitive_verb Mods
+5   NP -> proper_noun
+6   NP -> article NP2
+7   NP2 -> adjective NP2
+8   NP2 -> common_noun Mods
+9   Mods -> []
+10  Mods -> PP Mods
+11  PP -> preposition NP
+```
+```
+S: sentence
+    => NP + VP
+    "the packed lunch is in the house on the table getting cold"
+
+VP: verb phrase
+    => (copula_verb / (transitive_verb + NP) / intransitive_verb) + Mods
+    "getting"
+    "paying a visit"
+    "sitting"
+
+NP: noun phrase
+    => proper_noun / (article + adjectives? + common_noun + Mods)
+    "Ryan"
+    "the packed lunch"
+
+PP: preposition phrase
+    => preposed NP
+    "in the house"
+
+Mods: modifier
+    => PPs?
+    "in the house on the table"
+```
+
+#### Parse Trees
+<img src="parsetree2.png" width="800" title="parse tree 2">
+
 #### Database
 ```pl
 person(john). job(john, doctor). size(john, small).
@@ -182,20 +229,6 @@ preposition(with, X, Y) :- on(X, Y).
 preposition(with, X, Y) :- in(X, Y).
 preposition(with, X, Y) :- beside(X, Y).
 preposition(with, X, Y) :- beside(Y, X).
-```
-#### Grammar
-```
-1   S -> NP VP
-2   VP -> copula_verb Mods
-3   VP -> transitive verb NP Mods
-4   VP -> intransitive verb Mods
-5   NP -> proper_noun
-6   NP -> article NP2
-7   NP2 -> adjective NP2
-8   NP2 -> common_noun Mods
-9   Mods -> []
-10  Mods -> PP Mods
-11  PP -> preposition NP
 ```
 #### Parser
 ```pl
@@ -263,5 +296,52 @@ YN -> copula_verb NP PP    % Is X with Y?
 N/A
 
 ### Problem Solving / Planning (25%)
+
+#### Problem Solving Concepts
+The predicate `reachable(S,L)` means the state `S` is reachable using list of moves `L`:
+
+An initial state `S` is reachable and no moves are required:
+```pl
+reachable(S, []) :- initial_state(S).
+```
+If `S` is reachable using moves `L` and legal move `M` from `S` to `S1`, then `S1` is reachable using moves `[M | L]`:
+```pl
+reachable(S1, [M|L]) :- reachable(S, L), legal_move(S1, M, S).
+```
+
+To solve a problem, we try to reach a goal state:
+```pl
+solve_problem(L) :- reachable(S, L), goal_state(S).
+```
+A problem is solvable using a list of moves `L` if some goal state `S` is reachable using `L`.
+
+#### General Problem Solver
+For each specific problem we only need to specify the predicates:
+- `initial_state(S)`
+- `goal_state(S)`
+- `legal_move(S1, M, S)`
+
+In the first stage, apply `reachable(S, L)`. This is `reachable(S1, [M|L])`'s history.
+
+In the second stage, search for sequence of legal moves to get the next move:
+```pl
+% Example
+
+legal_move([X1,Y,Z],flip_left,[X,Y,Z]) :- flip(X,X1).
+legal_move([X,Y1,Z],flip_middle,[X,Y,Z]) :- flip(Y,Y1).
+legal_move([X,Y,Z1],flip_right,[X,Y,Z]) :- flip(Z,Z1).
+
+flip(h,t).
+flip(t,h).
+```
+
+Some general information regarding problem solving predicates:
+- **legal_move(S2, M, S1):** useful in it takes on two forms:
+    - For problem solving: `legal_move(S', M, S).` where representation of state are explicit lists (not entirely feasible in practice)
+    - For planning: `legal_move([A | S], A, S) :- poss(A, S).` where `initial_state([]).` to generalize all possibilities for `M`
+- **max_length(L, N):** holds when the length of list `L` is not more than `N`
+    - Can be used to bound the number of actions allowed by `reachable`
+- **reverse(L1, L2):** returns a list `L2` such that it contains the elements of `L1` in reversed order
+    - Can be used to list actions in the "correct" order
 
 ### Bayesian Networks (15%)
