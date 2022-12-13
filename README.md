@@ -135,6 +135,9 @@ solveBest([S,E,N,D,M,O,R,Y]) :-
 ```
 
 ### Natural Language Processing (20%)
+#### Concepts
+- Focuses on syntactic and semantic parsing: uses database (KB), lexicon (specifies vocabulary/word types), parser (grammatical rules to form statements)
+#### Grammar
 ```
 1   S -> NP VP
 2   VP -> copula_verb Mods
