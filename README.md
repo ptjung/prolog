@@ -1,5 +1,8 @@
 # Overview
 
+For the purposes of studying for CPS721, I created notes from a variety of random sources.
+To anyone who stumbles upon this, not everything here may be correct! This is mostly for personal use but can still provide a general overview.
+
 ### Formulate Queries (10%)
 ```pl
 age(5). age(10). age(15).
@@ -7,6 +10,8 @@ age(5). age(10). age(15).
     % ?- age(A), not((age(B), A < B)).
     % => A = 15
 ```
+#### Backchaining
+Backchaining uses backtracking to find alternative solutions.
 
 ### Structures (8%)
 #### Binary Tree
@@ -97,14 +102,13 @@ right(X,Y) :- left(Y,X).
 ```
 
 ### Constraints / CSP (12%)
-```pl
-% Example: SEND + MORE = MONEY
-
-dig(0). dig(1). dig(2). dig(3). dig(4).
-dig(5). dig(6). dig(7). dig(8). dig(9).
-```
+#### Domains
+- **Domain:** list of variables from the same value domain, which must be chosen in a way to satisfy all constraints
 #### Pure Generate and Test
 ```pl
+dig(0). dig(1). dig(2). dig(3). dig(4).
+dig(5). dig(6). dig(7). dig(8). dig(9).
+
 solve([S,E,N,D,M,O,R,Y]) :-
     dig(S), dig(E), dig(N), dig(D),
     dig(M), dig(O), dig(R), dig(Y),
@@ -119,6 +123,9 @@ solve([S,E,N,D,M,O,R,Y]) :-
 ```
 #### Interleaving of Generate and Test
 ```pl
+dig(0). dig(1). dig(2). dig(3). dig(4).
+dig(5). dig(6). dig(7). dig(8). dig(9).
+
 solveBest([S,E,N,D,M,O,R,Y]) :-
     dig(D), dig(E),
     Y is (D+E) mod 10, C1 is (D+E) // 10,
@@ -263,7 +270,7 @@ Normal Query
 ?- who([a, doctor, with, a, big, hat], X).
 X = grace
 ```
-Competion & Generation
+Completion & Generation
 ```pl
 ?- who([the, W, on, john], hat01).
 W = hat
@@ -442,14 +449,32 @@ useless(right(X), [left(X) | List]).
 ```
 ### Bayesian Networks (15%)
 
+#### Probability Overview
+
+- **Joint Probability Distribution (JPD):** corresponding probability distribution on all possible pairs of outputs for any number of random variables
+- **Random Variable (RV):** a quantity having a numerical value for each member of a group, such as how flipped coin having sample space `{H, T}`, can for example correspond to `{-1, 1}`
+- **Multiplicative Principle:** for two independent events A and B: `P(A and B) = P(A) · P(B)`
+- **Conditional Probability:** for two random variables `A`, `B`, if the JPD `P(A, B)` is directly given, then: `P(A|B) = P(A, B)/P(B)`
+    - If JPD `P(X¯, Y¯)` includes many random variables: `P(x1,...,xm|y1,...,ym) = P(x1,...,xm,y1,...,ym) / P(y1,...,ym)`
+- **Marginalization:** if `P(X¯, Y¯)` is a JPD over two sets of random variables `X¯`, `Y¯`, and `x¯`, `y¯` are assignments of values to `X¯`, `Y¯`, then the marginal probability of `Y¯ = y¯` is `P(Y¯ = y¯) = sum(x¯, P(X¯ = x¯, Y¯ = y¯))`
+
+Potential computational problem: if we have `n` boolean random variables, then we need `2^n − 1` numbers to specify joint distributions (JPD).
+
+#### Important Formulas
+```
+P(A,B,C) = P(C|A,B) * P(A,B)
+P(D|A,B,C) = P(D|A), if B and C are not directly connected to D
+```
+
+#### Definition
 A Bayesian Network (BN) is a directed acyclic (no cycles) graph. Each node is a random variable with a finite set of values that are mutually exclusive and exhaustive. The links represent cause–effect relation.
 
-- **Joint Probability Distribution (JBD):** corresponding probability distribution on all possible pairs of outputs for any number of random variables
-- **Random Variable (RV):** a quantity having a numerical value for each member of a group, such as how flipped coin having sample space `{H, T}`, can for example correspond to `{-1, 1}`
+<img src="baynetwork1.png" width="500" title="bayesian network 1">
 
-<img src="baynetwork1.png" width="800" title="bayesian network 1">
+Here, `P(A, B, C, D, E)` is equal to the probability product from all nodes. Each node has its probability implied by all adjacent former nodes, like how `P(D|B, C)` where `B` and `C` are directly connected to node `D`.
 
-How many numbers do we need to define `P(A, B, C, D, E)` if all RV are binary?
-We need 1 number to define `P(A)`, 2 numbers to define `P(B|A)`, 4 numbers to
-define `P(D|B, C)`, 2 numbers to define `P(C|A)` and 2 more for `P(E|C)`, i.e.
-`1 + 2 + 4 + 2 + 2 = 11` numbers in total vs. `25 − 1 = 31` without a BN structure.
+How many numbers do we need to define `P(A, B, C, D, E)` if all RV are binary? We need 1 number to define `P(A)`, 2 numbers to define `P(B|A)`, 4 numbers to define `P(D|B, C)`, 2 numbers to define `P(C|A)` and 2 more for `P(E|C)`, i.e. `1 + 2 + 4 + 2 + 2 = 11` numbers in total vs. `2^5 − 1 = 31` (all `5` nodes are binary) without a BN structure.
+
+#### Diagnoses
+<img src="diagnosis1.png" width="500" title="diagnosis 1">
+<img src="diagnosis2.png" width="500" title="diagnosis 2">
