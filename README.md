@@ -245,7 +245,7 @@ np([Art | Rest], Who) :- article(Art), np2(Rest, Who).
 np2([Adj | Rest], Who) :- adjective(Adj, Who), np2(Rest, Who). 
 
 % NP2 -> common_noun Mods
-Np2([Noun | Rest], Who) :- common_noun(Adj, Who), mods(Rest, Who). 
+np2([Noun | Rest], Who) :- common_noun(Adj, Who), mods(Rest, Who). 
 
 % Mods -> []
 mods([], Who). 
@@ -293,7 +293,7 @@ YN -> copula_verb NP PP    % Is X with Y?
 
 ### Short Essay General Question (5%)
 
-N/A
+TBD
 
 ### Problem Solving / Planning (25%)
 
@@ -304,7 +304,7 @@ An initial state `S` is reachable and no moves are required:
 ```pl
 reachable(S, []) :- initial_state(S).
 ```
-If `S` is reachable using moves `L` and legal move `M` from `S` to `S1`, then `S1` is reachable using moves `[M | L]`:
+If `S` is reachable using moves `L` and legal move `M` from `S` to `S1`, then `S1` is reachable using moves `[M|L]`:
 ```pl
 reachable(S1, [M|L]) :- reachable(S, L), legal_move(S1, M, S).
 ```
@@ -321,9 +321,9 @@ For each specific problem we only need to specify the predicates:
 - `goal_state(S)`
 - `legal_move(S1, M, S)`
 
-In the first stage, apply `reachable(S, L)`. This is `reachable(S1, [M|L])`'s history.
+In the first stage of `reachable(S1, [M|L])`, apply `reachable(S, L)`. This is `reachable(S1, [M|L])`'s history.
 
-In the second stage, search for sequence of legal moves to get the next move:
+In the second stage of `reachable(S1, [M|L])`, search for legal move `legal_move(S1, M, S)` to get the next move:
 ```pl
 % Example
 
@@ -337,11 +337,119 @@ flip(t,h).
 
 Some general information regarding problem solving predicates:
 - **legal_move(S2, M, S1):** useful in it takes on two forms:
-    - For problem solving: `legal_move(S', M, S).` where representation of state are explicit lists (not entirely feasible in practice)
-    - For planning: `legal_move([A | S], A, S) :- poss(A, S).` where `initial_state([]).` to generalize all possibilities for `M`
+    - For **state-based approach**: `legal_move(S', M, S)` where representation of state are explicit lists (not entirely feasible in practice)
+    - For **situations & fluents approach**: `legal_move([A | S], A, S) :- poss(A, S)` alongside `initial_state([])` to generalize all possibilities from `S`
 - **max_length(L, N):** holds when the length of list `L` is not more than `N`
     - Can be used to bound the number of actions allowed by `reachable`
 - **reverse(L1, L2):** returns a list `L2` such that it contains the elements of `L1` in reversed order
     - Can be used to list actions in the "correct" order
 
+Code Example:
+```pl
+loc(loc1). loc(loc2). loc(loc3). loc(loc4).
+
+initial_state([loc3,loc4,loc1,n,n]).
+goal_state([_,_,_,_,y]).
+
+legal_move(S1,climb_off,S) :- legal_move(S,climb_on,S1).
+legal_move([B,L,L,y,H],climb_on,[B,L,L,n,H]).
+legal_move([L,L,L,y,y],grab,[L,L,L,y,n]).
+legal_move([B,X,L,n,H],go(X),[B,M,L,n,H]) :- loc(X), not(X=M).
+legal_move([B,X,X,n,H],push(X),[B,M,M,n,H]) :- loc(X), not(X=M).
+```
+#### Planning
+Used to meet some goal we are interested in achieving (i.e. solve a problem) by sending actions to the robot for execution. In typical problem solving, exploring all aspects of a state in a big list can be too time-consuming, and there can be too many objects with too many properties to list them all in each clause of `legal_move`.
+
+Instead, we use *situations* and *fluents*. We are able to describe the problem incrementally without having to know in advance all possible actions and fluents, by only identifying relevant actions. This generalizes common actions and simplifies managing complex states with large number of properties.
+
+- **Situation:** sequence of actions `S` which represents the current state and its history
+- **Fluent:** predicates that are used to state facts about the world (e.g. `on_box(S)`, `location(Thing, Loc, S)`)
+
+Code Example:
+```pl
+loc(loc1). loc(loc2). loc(loc3). loc(loc4).
+banana_location(loc3).
+
+goal_state(S) :- has_bananas(S).
+
+poss(grab,S) :- on_box(S), banana_location(L), location(box,L,S).
+poss(climb_on,S) :- location(monkey,L,S), location(box,L,S), not(on_box(S)).
+poss(climb_off,S) :- on_box(S).
+poss(go(X),S) :- loc(X), location(monkey,L,S), not(X=L), not(on_box(S)).
+poss(push(X),S) :- loc(X), location(monkey,L,S), location(box,L,S), not(X=L), not(on_box(S)).
+
+on_box([climb_on|S]).
+on_box([A|S]) :- not(A=climb_off), on_box(S).
+
+has_bananas([grab|S]).
+has_bananas([A|S]) :- has_bananas(S).
+
+location(monkey,X,[go(X)|S]).
+location(monkey,X,[push(X)|S]).
+location(monkey,X,[A|S]) :- not(A=go(_)), not(A=push(_)), location(monkey,X,S).
+location(box,X,[push(X)|S]).
+location(box,X,[A|S]) :- not(A=push(_)), location(box,X,S).
+location(monkey,loc4,[]).
+location(box,loc1,[]).
+```
+#### Precondition Axioms
+For a `legal_move`, they define when an action can be executed, by using the `poss(Action, Situation)` predicate.
+
+For States = [*bananas*, *monkey*, *box*, *OnBox?*, *HasBananas?*]:
+```pl
+legal_move([X, L, L, no, Y], climbOffBox, [X, L, L, yes, Y]).
+
+% to
+
+legal_move([A | S], A, S) :- poss(A, S).
+poss(climbOffBox, Sit) :- on_box(Sit).
+```
+#### Successor-State Axioms
+For a `legal_move`, they define how the action affects the state. Ultimately, it asks whether a fluent holds in `[A | S]` given that it did (or not) in `S`.
+
+Checking whether the `climbOnBox` action occurred in the past using `on_box`:
+```pl
+% Positive Effect
+on_box([climbOnBox | S]).
+
+% Persistence Rule
+on_box([A | S]) :- not(A = climbOnBox), on_box(S).
+```
+
+My definition for general form of successor-state axioms:
+```pl
+fluent(X1, ..., XN, [ActionThatMakesTrue | S]) :- if_condit_holds(X1, ..., XN, S).
+fluent(X1, ..., XN, [A | S]) :- fluent(X1, ..., XN), not(A = ActionThatMakesFalse), not(A = ActionThatMakesTrue).
+```
+
+For negative effect rules, write a conjunction of the form (`not(A=act1), not(A=act2), ...`) on the R.H.S of the rule.
+
+#### Complexity
+
+TBD
+
+#### DFS & BFS
+
+TBD
+
+#### Declarative Heuristics
+The predicate `useless(M, History)` is `true` if `M` is a redundant action to do given the list `History` of actions that have been performed already. As a result, it can reduce time spent by cutting down redundant situation branches.
+```pl
+useless(up(X), [down(X) | List]).
+useless(down(X), [up(X) | List]).
+useless(left(X), [right(X) | List]).
+useless(right(X), [left(X) | List]).
+```
 ### Bayesian Networks (15%)
+
+A Bayesian Network (BN) is a directed acyclic (no cycles) graph. Each node is a random variable with a finite set of values that are mutually exclusive and exhaustive. The links represent cause–effect relation.
+
+- **Joint Probability Distribution (JBD):** corresponding probability distribution on all possible pairs of outputs for any number of random variables
+- **Random Variable (RV):** a quantity having a numerical value for each member of a group, such as how flipped coin having sample space `{H, T}`, can for example correspond to `{-1, 1}`
+
+<img src="baynetwork1.png" width="800" title="bayesian network 1">
+
+How many numbers do we need to define `P(A, B, C, D, E)` if all RV are binary?
+We need 1 number to define `P(A)`, 2 numbers to define `P(B|A)`, 4 numbers to
+define `P(D|B, C)`, 2 numbers to define `P(C|A)` and 2 more for `P(E|C)`, i.e.
+`1 + 2 + 4 + 2 + 2 = 11` numbers in total vs. `25 − 1 = 31` without a BN structure.
